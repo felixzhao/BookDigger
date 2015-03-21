@@ -6,11 +6,49 @@ import sys
 from bs4 import BeautifulSoup
 import re
 
+def getPageNumber ( para ):
+	if para is None:
+		return 0
+
+	t = para.split('=')
+	if len(t) < 2: 
+		print('无页码.')
+		return 0
+	tt = t[1]
+	t2 = tt.split('&')
+	number = t2[0]
+
+	if number.isdigit() == True:
+		return int(number)
+	else:
+		return 0
+
+def haveNextPage( spanContent):
+	result = 0
+
+	if spanContent is None:
+		return 0
+
+	next_a = spanContent.find('a', href=True)
+	if next_a is None:
+		return 0
+
+	_href = next_a['href']
+	print('\n下一页信息：' + _href + '\n')
+
+	if _href is None:
+		return 0
+
+	page_num = getPageNumber(_href)			
+
+	return page_num
+
 fcat = open('./catlogos_all.txt','r')
 
 name_list = fcat.readline().split()
 
 for name in name_list:
+	print('\n\n>>> ' + name + ' 开始处理.\n')
 	fout = open('./rating_out/' + name + '.txt','w')
 
 	#flog = open('../page_content.race','w')
@@ -22,21 +60,11 @@ for name in name_list:
 	while True:
 		print(url_path + ' ' + 'datetime? : ' + str(datetime.datetime.now()))
 		try:
-			print('\n==>start get page.\n')
+			print('开始新的一页处理。')
 
 			response = requests.get(url_path)
-			#headers = {'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2272.76'}  
-			#req = urllib.request.Request(url_path, headers=headers)
-			#page = urllib.request.urlopen(req)
 
-			#page = urllib.request(url_path, headers={'User-Agent' : "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/534.30 (KHTML, like Gecko) Ubuntu/11.04 Chromium/12.0.742.112 Chrome/12.0.742.112 Safari/534.30"}) 
-			#page = urllib.request.urlopen(url_path)
-
-			#data = page.read()
-			#data = data.decode('UTF-8')
-
-			#flog.write(response.text)
-			#flog.write('\n ======= \n')
+			print('获取内容信息完成。')
 
 			soup = BeautifulSoup(response.text)
 			infos = soup.findAll('div',{'class':'info'})
@@ -60,7 +88,7 @@ for name in name_list:
 
 				#print(bookName + ' : ' + rating + ' ; ratingCount : ' + pl)
 
-				if float(rating) > 8.9 and int(pl) > 3000:
+				if rating.startswith('8') and rating.endswith('9') and int(pl) > 3000:
 					print("### match : " + bookName + ' , ' + rating + ' , ' +  pl + ' , \'' + pub.strip() + '\'')
 					fout.write(bookName + ' , ' + rating + ' , ' +  pl + ' , \'' + pub.strip() + '\'')
 					fout.write('\n')
@@ -69,37 +97,23 @@ for name in name_list:
 
 			# check next existed
 			next = soup.find('span', {'class':'next'})
-			if next == None:
-				print("\n!!! Exception: No Next span !!!\n")
-				break
 
-			next_a = next.find('a', href=True)
-			if next_a is None:
-				print('\n ' + name + ' : end at ' + url_path + ' \n')
-				break
+			cur_page_num = haveNextPage(next)
 
-			if next_a['href'] == None:
-				print("\n!!! Exception: Next Page Url is Empty !!!\n")
-				break
-			#debug
-			print('href : ' + next_a['href'] + '\n')
-			page_num = next_a['href'].split('=')[1].split['&'][0]
-			print('page num : ' + page_num + '\n')
+			if cur_page_num == 0:
+				print('\n\n>>> ' + name + ' 处理完成.\n')
+				break;
+						
+			url_path = url_root + "?start=" + str(cur_page_num) + "&type=T"
+				
+			print('\n >> 第 ' + str(cur_page_num/20 + 1) + ' 页处理完成。\n')
 
-			next_url_para = "?start=" + str(int(page_num)) + "&type=T" #next_a['href'].split('?')[1]
-			url_path = url_root + next_url_para
 
-			print('\n==> end of get page.\n')
-
-			time.sleep(10)
-		#except urllib.error.URLError as e: 
-		#	print('code: ' + str(e.code) + ' ; reason: ' + str(e.reason))
-		#	if e.code == 403:
-		#		time.sleep(30)
-		#	ResponseData = e.read().decode("utf8", 'ignore')
+			time.sleep(2)
+		
 		except Exception:
 			print('get Exception.')
 			print(sys.exc_info())
 			pass
 	fout.close()
-	time.sleep(60)
+	time.sleep(10)
