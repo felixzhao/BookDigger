@@ -43,6 +43,21 @@ def haveNextPage( spanContent):
 
 	return page_num
 
+def getNextPageUrl(soup, name):
+	url = ''
+	next = soup.find('span', {'class':'next'})
+	if next is None:
+		print('\n ！！！页面内容异常： 下一页 按钮不存在 ！！！ \n')
+		return url
+	cur_link = next.find('link')
+	if cur_link is None: # 下一页不存在
+		print('\n\n>>> ' + name + ' 处理完成.\n')
+	else:
+		url = 'http://book.douban.com' + cur_link['href']
+		page_num = getPageNumber(cur_link['href'])				
+		print('\n >> 第 ' + str(page_num/20) + ' 页处理完成。\n')
+	return url
+
 fcat = open('./catlogos_all.txt','r')
 
 name_list = fcat.readline().split()
@@ -64,6 +79,9 @@ for name in name_list:
 
 			response = requests.get(url_path)
 
+			if response.status_code != 200:
+				print("\n!!! 网络访问返回异常，异常代码：" + str(response.status_code) + " !!!\n")
+
 			print('获取内容信息完成。')
 
 			soup = BeautifulSoup(response.text)
@@ -79,38 +97,31 @@ for name in name_list:
 				pl_item = info.find('span',{'class':'pl'}).string
 
 				if rating_item != None:
-					rating = rating_item.string.replace('\n','')
+					rating = str(rating_item.string.replace('\n',''))
 				if pub_item != None:
 					pub = pub_item.string.replace('\n','')
 				if pl_item != None:
 					m = re.search('\d+', pl_item)
-					pl = m.group(0)
+					if m != None:
+						pl = m.group(0)
 
 				#print(bookName + ' : ' + rating + ' ; ratingCount : ' + pl)
 
-				if rating.startswith('8') and rating.endswith('9') and int(pl) > 3000:
-					print("### match : " + bookName + ' , ' + rating + ' , ' +  pl + ' , \'' + pub.strip() + '\'')
-					fout.write(bookName + ' , ' + rating + ' , ' +  pl + ' , \'' + pub.strip() + '\'')
+				if ((rating.startswith('8') and rating.endswith('9')) or  rating.startswith('9') ) and int(pl) > 3000:
+					print("### match : " + bookName + ' , ' + str(rating) + ' , ' +  pl + ' , \'' + pub.strip() + '\'')
+					fout.write(bookName + ' , ' + str(rating) + ' , ' +  pl + ' , \'' + pub.strip() + '\'')
 					fout.write('\n')
 			#fout.write("====== page " + str(int(i/20)) + ' ' + str(datetime.datetime.now()) + " ====== \n")
 			#print("====== page " + str(int(i/20)) + ' ' + str(datetime.datetime.now()) + " ====== \n")
 
 			# check next existed
-			next = soup.find('span', {'class':'next'})
+			url_path = getNextPageUrl(soup, name)
 
-			cur_page_num = haveNextPage(next)
-
-			if cur_page_num == 0:
-				print('\n\n>>> ' + name + ' 处理完成.\n')
-				break;
-						
-			url_path = url_root + "?start=" + str(cur_page_num) + "&type=T"
-				
-			print('\n >> 第 ' + str(cur_page_num/20 + 1) + ' 页处理完成。\n')
+			if url_path == '':
+				break
 
 
 			time.sleep(2)
-		
 		except Exception:
 			print('get Exception.')
 			print(sys.exc_info())
