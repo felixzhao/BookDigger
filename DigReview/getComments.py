@@ -6,14 +6,18 @@ import sys
 from bs4 import BeautifulSoup
 import re
 
+def getSoup(url):
+	headers = {'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:23.0) Gecko/20100101 Firefox/23.0'}
+	response = requests.get(url, headers=headers)
+	soup = BeautifulSoup(response.text)
+	return soup
+
 def getPageCount(url):
 	count = 0
-	response = requests.get(url)
-	soup = BeautifulSoup(response.text)
-	print(soup)
+	soup = getSoup(url)
 	total = soup.find('span',{'id':'total-comments'})
 	if total is not None:
-		count = int(total.string[4:-2])
+		count = int(int(total.string[4:-2])/20)
 	return count
 
 def checkNext(cur, total):
@@ -26,8 +30,8 @@ def main():
 	fout = open('../Comments.txt','w')
 
 	print(' ### Start Get Comments. ### ')
-#	url_path = 'http://book.douban.com/subject/1060852/comments/hot?p='
-	url_path = 'http://book.douban.com/subject/4843155/comments/hot?p='
+	url_path = 'http://book.douban.com/subject/1060852/comments/hot?p='
+
 	page_num = 1
 	try:
 		page_count = getPageCount(url_path + str(page_num))
@@ -37,11 +41,10 @@ def main():
 		else:
 			print(' !!! total page : ' + str(page_count))
 		while True:
-			print('Start Page : ' + str(page_num))
+			print(' >>> Start Page : ' + str(page_num))
 			url = url_path + str(page_num)
 
-			response = requests.get(url)
-			soup = BeautifulSoup(response.text)
+			soup = getSoup(url)
 			infos = soup.findAll('li',{'class':'comment-item'})
 			if infos is not None and len(infos) > 0:
 				for info in infos:
@@ -54,11 +57,12 @@ def main():
 
 			if checkNext(page_num, page_count) == True:
 				page_num += 1
+				print(' >>> Page Done : ' + str(page_num))
 			else:
 				fout.close()
-				print(" ### Get Comments Done at page : " + str(page_num) + " ### ")
+				print(" ### Get Comments Done at page : " + str(page_num) + " Total : " + str(page_count) + " ### ")
 				return
-			sleep(2)
+			time.sleep(1)
 			pass
 	except Exception:
 			print('get Exception.')
